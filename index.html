@@ -6,6 +6,8 @@
 <title>MOAR IT Issue Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
   --bg:#0d0f14;--surf:#161a23;--surf2:#1e2330;--bdr:#2a3045;
@@ -215,7 +217,7 @@ select option{background:var(--surf2);}
     <div class="toolbar">
       <button class="btn btn-primary" onclick="openModal()">+ Log Issue</button>
       <button class="btn btn-ghost" onclick="exportCSV()">Download CSV</button>
-      <button class="btn btn-ghost" onclick="window.print()">Print / PDF</button>
+      <button class="btn btn-ghost" id="btn-pdf" onclick="exportPDF()">⬇ Download PDF</button>
       <button class="btn btn-ghost" onclick="loadIssues(true)">Refresh</button>
       <div class="filters">
         <span class="filter-label">Status</span>
@@ -733,6 +735,250 @@ function loadIssues(showToast) {
 function persist() {
   if (!jsonOK) return Promise.resolve();
   return pushIssues().then(function(){updateFooter();}).catch(function(e){toast("Save failed: "+e.message,true);});
+}
+
+/* ── PDF EXPORT ── */
+async function exportPDF() {
+  var btn = document.getElementById("btn-pdf");
+  btn.disabled = true; btn.textContent = "Generating...";
+  try {
+    var { jsPDF } = window.jspdf;
+    var doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    var pageW = 297, pageH = 210, margin = 12;
+
+    // ── colours
+    var bg      = [13,15,20];
+    var surf    = [22,26,35];
+    var surf2   = [30,35,48];
+    var bdr     = [42,48,69];
+    var acc     = [79,142,247];
+    var acc2    = [0,229,176];
+    var warn    = [247,168,79];
+    var dng     = [247,89,89];
+    var purple  = [199,125,255];
+    var txt     = [232,236,244];
+    var mut     = [107,117,145];
+
+    function setFill(c){ doc.setFillColor(c[0],c[1],c[2]); }
+    function setTxt(c){ doc.setTextColor(c[0],c[1],c[2]); }
+    function setDraw(c){ doc.setDrawColor(c[0],c[1],c[2]); }
+
+    // ── background
+    setFill(bg); doc.rect(0,0,pageW,pageH,"F");
+
+    // ── header bar
+    setFill(surf); doc.rect(0,0,pageW,18,"F");
+    setDraw(bdr); doc.setLineWidth(0.3); doc.line(0,18,pageW,18);
+
+    // logo badge
+    setFill(acc); doc.roundedRect(margin,4,18,10,2,2,"F");
+    setTxt([255,255,255]); doc.setFont("helvetica","bold"); doc.setFontSize(8);
+    doc.text("MOAR",margin+9,10.5,{align:"center"});
+
+    // title
+    setTxt(txt); doc.setFontSize(11); doc.setFont("helvetica","bold");
+    doc.text("IT Issue Tracker — Weekly Report",margin+22,10);
+    setTxt(mut); doc.setFontSize(7); doc.setFont("helvetica","normal");
+    doc.text("Powerbridge · Support: Jagruth",margin+22,14.5);
+
+    // date right
+    var now = new Date();
+    var dateStr = now.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+    setTxt(mut); doc.setFontSize(7);
+    doc.text("Generated: "+dateStr, pageW-margin, 10, {align:"right"});
+
+    // ── STAT TILES row
+    var nTotal = issues.length;
+    var nOpen  = issues.filter(function(i){return i.sta==="Open";}).length;
+    var nProg  = issues.filter(function(i){return i.sta==="In Progress";}).length;
+    var nRes   = issues.filter(function(i){return i.sta==="Resolved";}).length;
+    var nCrit  = issues.filter(function(i){return i.pri==="Critical";}).length;
+    var nOver  = issues.filter(function(i){return isOverdue(i);}).length;
+
+    var tiles = [
+      {label:"TOTAL",    val:nTotal, col:txt},
+      {label:"OPEN",     val:nOpen,  col:warn},
+      {label:"IN PROGRESS",val:nProg,col:acc},
+      {label:"RESOLVED", val:nRes,   col:acc2},
+      {label:"CRITICAL", val:nCrit,  col:dng},
+      {label:"OVERDUE",  val:nOver,  col:purple}
+    ];
+    var tileW = (pageW - margin*2 - 10) / 6;
+    var ty = 22;
+    tiles.forEach(function(t,idx){
+      var tx = margin + idx*(tileW+2);
+      setFill(surf); doc.roundedRect(tx,ty,tileW,18,2,2,"F");
+      setDraw(bdr); doc.setLineWidth(0.2); doc.roundedRect(tx,ty,tileW,18,2,2,"S");
+      setTxt(t.col); doc.setFont("courier","bold"); doc.setFontSize(16);
+      doc.text(String(t.val), tx+tileW/2, ty+10.5, {align:"center"});
+      setTxt(mut); doc.setFont("helvetica","normal"); doc.setFontSize(6);
+      doc.text(t.label, tx+tileW/2, ty+15.5, {align:"center"});
+    });
+
+    // ── DASHBOARD row: donut-like bars + category breakdown
+    var dashY = ty+22;
+    var colW  = (pageW - margin*2 - 8) / 3;
+
+    // Card helper
+    function card(x,y,w,h){
+      setFill(surf); doc.roundedRect(x,y,w,h,2,2,"F");
+      setDraw(bdr); doc.setLineWidth(0.2); doc.roundedRect(x,y,w,h,2,2,"S");
+    }
+
+    // ── Card 1: Status breakdown
+    var c1x = margin, c1y = dashY, c1w = colW, c1h = 52;
+    card(c1x,c1y,c1w,c1h);
+    setTxt(mut); doc.setFont("helvetica","normal"); doc.setFontSize(6.5);
+    doc.text("ISSUES BY STATUS",c1x+4,c1y+6);
+    var statBars = [
+      {label:"Open",       val:nOpen, col:warn},
+      {label:"In Progress",val:nProg, col:acc},
+      {label:"Resolved",   val:nRes,  col:acc2},
+      {label:"Overdue",    val:nOver, col:purple}
+    ];
+    var maxS = Math.max(nOpen,nProg,nRes,nOver,1);
+    statBars.forEach(function(b,i){
+      var by = c1y+10+i*10;
+      setTxt(mut); doc.setFontSize(6); doc.setFont("helvetica","normal");
+      doc.text(b.label, c1x+4, by+4);
+      var barMaxW = c1w-40; var barW = Math.max(2,(b.val/maxS)*barMaxW);
+      setFill(surf2); doc.roundedRect(c1x+28,by,barMaxW,4,1,1,"F");
+      setFill(b.col); doc.roundedRect(c1x+28,by,barW,4,1,1,"F");
+      setTxt(b.col); doc.setFont("courier","bold"); doc.setFontSize(6.5);
+      doc.text(String(b.val), c1x+28+barMaxW+3, by+4);
+    });
+
+    // ── Card 2: Category breakdown
+    var c2x = margin+colW+4, c2y = dashY, c2w = colW, c2h = 52;
+    card(c2x,c2y,c2w,c2h);
+    setTxt(mut); doc.setFontSize(6.5); doc.setFont("helvetica","normal");
+    doc.text("ISSUES BY CATEGORY",c2x+4,c2y+6);
+    var cats=[
+      {n:"Hardware",      col:warn},
+      {n:"Software",      col:acc},
+      {n:"Network",       col:acc2},
+      {n:"Access / Permissions",col:purple},
+      {n:"Other",         col:mut}
+    ];
+    var maxC = Math.max.apply(null,cats.map(function(c){return issues.filter(function(i){return i.cat===c.n;}).length;}))||1;
+    cats.forEach(function(c,i){
+      var cnt = issues.filter(function(x){return x.cat===c.n;}).length;
+      var by  = c2y+10+i*8.5;
+      setTxt(mut); doc.setFontSize(6); doc.setFont("helvetica","normal");
+      var shortN = c.n.length>18?c.n.substring(0,16)+"..":c.n;
+      doc.text(shortN, c2x+4, by+4);
+      var barMaxW = c2w-42; var barW = Math.max(2,(cnt/maxC)*barMaxW);
+      setFill(surf2); doc.roundedRect(c2x+30,by,barMaxW,4,1,1,"F");
+      setFill(c.col); doc.roundedRect(c2x+30,by,barW,4,1,1,"F");
+      setTxt(c.col); doc.setFont("courier","bold"); doc.setFontSize(6.5);
+      doc.text(String(cnt), c2x+30+barMaxW+3, by+4);
+    });
+
+    // ── Card 3: Priority + overdue summary
+    var c3x = margin+colW*2+8, c3y = dashY, c3w = colW, c3h = 52;
+    card(c3x,c3y,c3w,c3h);
+    setTxt(mut); doc.setFontSize(6.5); doc.setFont("helvetica","normal");
+    doc.text("BY PRIORITY",c3x+4,c3y+6);
+    var pris=[
+      {n:"Critical",col:dng},
+      {n:"High",    col:warn},
+      {n:"Medium",  col:acc},
+      {n:"Low",     col:mut},
+      {n:"Unset",   col:bdr}
+    ];
+    var priTileW=(c3w-12)/2, priTileH=16;
+    pris.forEach(function(p,i){
+      var cnt=issues.filter(function(x){return (x.pri||"Unset")===p.n;}).length;
+      var px=c3x+4+(i%2)*(priTileW+4);
+      var py=c3y+9+Math.floor(i/2)*18;
+      setFill(surf2); doc.roundedRect(px,py,priTileW,priTileH,2,2,"F");
+      setTxt(p.col); doc.setFont("courier","bold"); doc.setFontSize(12);
+      doc.text(String(cnt),px+priTileW/2,py+9,{align:"center"});
+      setTxt(mut); doc.setFont("helvetica","normal"); doc.setFontSize(5.5);
+      doc.text(p.n.toUpperCase(),px+priTileW/2,py+13.5,{align:"center"});
+    });
+
+    // ── ISSUES TABLE
+    var tableY = dashY + c1h + 6;
+    var tableH = pageH - tableY - 8;
+    card(margin, tableY, pageW-margin*2, tableH);
+
+    // table header
+    setFill(surf2);
+    doc.roundedRect(margin,tableY,pageW-margin*2,7,2,2,"F");
+    doc.rect(margin,tableY+4,pageW-margin*2,3,"F");
+
+    var cols = [
+      {h:"ISSUE ID", w:22},
+      {h:"DATE",     w:20},
+      {h:"CATEGORY", w:32},
+      {h:"TITLE",    w:60},
+      {h:"PRIORITY", w:22},
+      {h:"STATUS",   w:24},
+      {h:"DUE DATE", w:22},
+      {h:"REPORTER", w:30},
+    ];
+    var totalW = cols.reduce(function(a,c){return a+c.w;},0);
+    var scaleX = (pageW-margin*2-6)/totalW;
+    var cx = margin+3;
+    setTxt(mut); doc.setFont("helvetica","normal"); doc.setFontSize(5.5);
+    cols.forEach(function(col){
+      doc.text(col.h, cx+1, tableY+5);
+      cx += col.w*scaleX;
+    });
+
+    // table rows
+    var rowH = 6.5;
+    var maxRows = Math.floor((tableH-10)/rowH);
+    var rowIssues = issues.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,maxRows);
+    rowIssues.forEach(function(iss,ridx){
+      var ry = tableY+9+ridx*rowH;
+      if(ridx%2===1){setFill(surf2);doc.rect(margin,ry-1,pageW-margin*2,rowH,"F");}
+      var over = isOverdue(iss);
+      if(over){setFill([40,20,50]);doc.rect(margin,ry-1,pageW-margin*2,rowH,"F");
+               setFill(purple);doc.rect(margin,ry-1,2,rowH,"F");}
+      var rcx = margin+3;
+      var priColors={"Critical":dng,"High":warn,"Medium":acc,"Low":mut,"Unset":bdr};
+      var staColors={"Open":warn,"In Progress":acc,"Resolved":acc2};
+      var vals=[
+        {v:iss.id||"",         col:acc},
+        {v:iss.date||"",       col:mut},
+        {v:(iss.cat||"").substring(0,14), col:mut},
+        {v:(iss.title||"").substring(0,28)+(iss.title&&iss.title.length>28?"..":""), col:txt},
+        {v:iss.pri||"Unset",   col:priColors[iss.pri||"Unset"]||mut},
+        {v:iss.sta||"Open",    col:staColors[iss.sta]||warn},
+        {v:iss.due||(over?"OVERDUE":"-"), col:over?purple:mut},
+        {v:(iss.rep||"-").substring(0,14), col:mut},
+      ];
+      doc.setFont("helvetica","normal"); doc.setFontSize(5.5);
+      vals.forEach(function(v,ci){
+        setTxt(v.col);
+        doc.text(v.v, rcx+1, ry+3.5);
+        rcx += cols[ci].w*scaleX;
+      });
+    });
+
+    // row count note
+    if(issues.length>maxRows){
+      setTxt(mut); doc.setFontSize(5.5);
+      doc.text("Showing "+maxRows+" of "+issues.length+" issues — download CSV for full list",
+        margin+3, tableY+tableH-2);
+    }
+
+    // ── footer
+    setTxt(mut); doc.setFontSize(6); doc.setFont("helvetica","normal");
+    doc.text("MOAR IT Issue Tracker — Confidential", margin, pageH-3);
+    doc.text("moarharsha.github.io/IT-Tracker", pageW-margin, pageH-3, {align:"right"});
+
+    // ── save
+    var fname = "MOAR_IT_Report_"+today()+".pdf";
+    doc.save(fname);
+    toast("PDF downloaded — "+fname);
+  } catch(e) {
+    console.error(e);
+    toast("PDF generation failed: "+e.message, true);
+  }
+  btn.disabled=false; btn.textContent="⬇ Download PDF";
 }
 
 /* ── NAG EMAIL ── fires once per day if any issue is 3+ days overdue */
