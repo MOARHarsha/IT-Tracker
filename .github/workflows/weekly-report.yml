@@ -1,0 +1,31 @@
+name: Weekly IT Report
+
+on:
+  schedule:
+    # Every Monday at 8:00am IST (2:30am UTC)
+    - cron: '30 2 * * 1'
+  workflow_dispatch:
+    # Run manually from GitHub Actions tab to test
+
+jobs:
+  send-weekly-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run weekly report
+        run: node scripts/weekly-report.js
+        env:
+          JSONBIN_API_KEY:     ${{ secrets.JSONBIN_API_KEY }}
+          JSONBIN_BIN_ID:      ${{ secrets.JSONBIN_BIN_ID }}
+          EMAILJS_SERVICE_ID:  ${{ secrets.EMAILJS_SERVICE_ID }}
+          EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          EMAILJS_PUBLIC_KEY:  ${{ secrets.EMAILJS_PUBLIC_KEY }}
+          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+          EMAIL_TO:            ${{ secrets.EMAIL_TO }}
