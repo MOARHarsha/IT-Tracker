@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOAR IT Issue Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --bg:#0d0f14;--surf:#161a23;--surf2:#1e2330;--bdr:#2a3045;
+  --acc:#4f8ef7;--acc2:#00e5b0;--warn:#f7a84f;--dng:#f75959;
+  --txt:#e8ecf4;--mut:#ffffff;--purple:#c77dff;
+  --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);min-height:100vh;}
+
+/* HEADER */
+header{background:var(--surf);border-bottom:1px solid var(--bdr);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-badge{background:var(--acc);color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;padding:5px 9px;border-radius:6px;letter-spacing:1px;}
+.logo-name{font-size:15px;font-weight:600;}
+.logo-sub{font-size:10px;color:var(--mut);font-family:var(--mono);letter-spacing:.8px;text-transform:uppercase;margin-top:2px;}
+.live-pill{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--acc2);font-family:var(--mono);background:rgba(0,229,176,.08);border:1px solid rgba(0,229,176,.2);padding:5px 12px;border-radius:20px;}
+.ldot{width:7px;height:7px;border-radius:50%;background:var(--acc2);animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--bdr);background:var(--surf);padding:0 28px;}
+.tab{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.8px;padding:12px 18px;cursor:pointer;border:none;background:transparent;color:var(--mut);border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc);}
+.tab:hover:not(.active){color:var(--txt);}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--bdr);border-bottom:1px solid var(--bdr);}
+.stat{background:var(--surf);padding:14px 20px;}
+.sv{font-family:var(--mono);font-size:26px;font-weight:700;line-height:1;}
+.sl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin-top:3px;}
+.s-total .sv{color:var(--txt);}
+.s-open .sv{color:var(--warn);}
+.s-prog .sv{color:var(--acc);}
+.s-res .sv{color:var(--acc2);}
+.s-crit .sv{color:var(--dng);}
+.s-over .sv{color:var(--purple);}
+
+/* TOOLBAR */
+.main{padding:20px 28px;}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.btn{font-family:var(--sans);font-size:12px;font-weight:500;padding:8px 16px;border-radius:7px;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-lg{font-size:15px!important;padding:11px 24px!important;border-radius:9px!important;font-weight:600!important;}
+.btn-primary{background:var(--acc);color:#fff;}.btn-primary:hover{filter:brightness(1.15);}
+.btn-ghost{background:var(--surf2);color:var(--txt);border:1px solid var(--bdr);}.btn-ghost:hover{border-color:var(--acc);color:var(--acc);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.filters{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;}
+.fb{font-family:var(--mono);font-size:10px;padding:6px 11px;border-radius:5px;cursor:pointer;border:1px solid var(--bdr);background:var(--surf2);color:var(--mut);transition:all .15s;text-transform:uppercase;letter-spacing:.5px;}
+.fb.active,.fb:hover{border-color:var(--acc);color:var(--acc);}
+.fb.over-filter.active,.fb.over-filter:hover{border-color:var(--purple);color:var(--purple);}
+.fb.crit-filter.active,.fb.crit-filter:hover{border-color:var(--dng);color:var(--dng);}
+.fb.high-filter.active,.fb.high-filter:hover{border-color:var(--warn);color:var(--warn);}
+.filter-group{display:flex;align-items:center;gap:6px;}
+.filter-sep{width:1px;height:16px;background:var(--bdr);margin:0 4px;}
+.filter-label{font-family:var(--mono);font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+
+/* SEARCH */
+.search-row{position:relative;margin-bottom:16px;}
+.search-row input{width:100%;background:var(--surf);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);padding:9px 14px 9px 36px;font-size:13px;font-family:var(--sans);outline:none;transition:border-color .15s;}
+.search-row input:focus{border-color:var(--acc);}
+.si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:13px;pointer-events:none;}
+
+/* TABLE */
+.table-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;overflow:hidden;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;min-width:1000px;}
+thead tr{background:var(--surf2);border-bottom:1px solid var(--bdr);}
+th{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);padding:12px 14px;text-align:left;font-weight:600;white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--bdr);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--surf2);}
+tbody tr.overdue-row{border-left:3px solid var(--purple);}
+tbody tr.overdue-row td:first-child{padding-left:11px;}
+td{padding:13px 14px;font-size:14px;vertical-align:middle;}
+.iid{font-family:var(--mono);font-size:13px;color:var(--acc);font-weight:700;}
+.ititle{font-weight:500;max-width:220px;font-size:14px;}
+.ts{font-size:13px;color:var(--mut);font-family:var(--mono);}
+.due-ok{font-size:13px;color:var(--mut);font-family:var(--mono);}
+.due-soon{font-size:13px;color:var(--warn);font-family:var(--mono);font-weight:700;}
+.due-over{font-size:13px;color:var(--purple);font-family:var(--mono);font-weight:700;}
+.badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:4px 9px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+.b-open{background:rgba(247,168,79,.15);color:var(--warn);border:1px solid rgba(247,168,79,.3);}
+.b-prog{background:rgba(79,142,247,.15);color:var(--acc);border:1px solid rgba(79,142,247,.3);}
+.b-res{background:rgba(0,229,176,.1);color:var(--acc2);border:1px solid rgba(0,229,176,.25);}
+.b-crit{background:rgba(247,89,89,.15);color:var(--dng);border:1px solid rgba(247,89,89,.3);}
+.b-high{background:rgba(247,168,79,.1);color:var(--warn);border:1px solid rgba(247,168,79,.25);}
+.b-med{background:rgba(79,142,247,.1);color:#a0b8ff;border:1px solid rgba(79,142,247,.2);}
+.b-low{background:rgba(107,117,145,.15);color:var(--mut);border:1px solid var(--bdr);}
+.b-over{background:rgba(199,125,255,.15);color:var(--purple);border:1px solid rgba(199,125,255,.3);}
+.cat{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--mut);white-space:nowrap;}
+.cdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.d-hw{background:#f7a84f;}.d-sw{background:#4f8ef7;}.d-nw{background:#00e5b0;}.d-ac{background:#c77dff;}.d-ot{background:#6b7591;}
+.row-actions{display:flex;gap:5px;}
+.ib{width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:5px;border:1px solid var(--bdr);background:transparent;cursor:pointer;color:var(--mut);font-size:11px;transition:all .15s;}
+.ib:hover{border-color:var(--acc);color:var(--acc);background:rgba(79,142,247,.08);}
+.ib.del:hover{border-color:var(--dng);color:var(--dng);background:rgba(247,89,89,.08);}
+.empty{padding:50px;text-align:center;color:var(--mut);}
+
+/* OVERDUE BANNER */
+.overdue-banner{display:none;background:rgba(199,125,255,.08);border:1px solid rgba(199,125,255,.25);border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:12px;color:var(--purple);font-family:var(--mono);align-items:center;gap:8px;}
+.overdue-banner.show{display:flex;}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:28px;width:580px;max-height:90vh;overflow-y:auto;}
+.modal h2{font-size:16px;font-weight:600;margin-bottom:22px;display:flex;align-items:center;gap:8px;}
+.modal h2::before{content:'';display:block;width:3px;height:18px;background:var(--acc);border-radius:2px;}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fgi{display:flex;flex-direction:column;gap:5px;}
+.fgi.full{grid-column:1/-1;}
+label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:var(--mut);}
+input,select,textarea{background:var(--surf2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);padding:9px 11px;font-size:12px;font-family:var(--sans);outline:none;transition:border-color .15s;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--acc);}
+textarea{resize:vertical;min-height:70px;}
+select option{background:var(--surf2);}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surf2);border:1px solid var(--acc2);color:var(--acc2);font-family:var(--mono);font-size:11px;padding:10px 16px;border-radius:8px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;max-width:320px;}
+.toast.show{opacity:1;}
+
+/* FOOTER */
+.footer{padding:10px 28px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--mut);font-family:var(--mono);border-top:1px solid var(--bdr);}
+.footer span{color:var(--acc2);}
+
+/* ── DASHBOARD ── */
+.dash{padding:24px 28px;}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+.dash-card{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:20px;}
+.dash-card.wide{grid-column:span 2;}
+.dash-card h3{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.9px;color:var(--mut);margin-bottom:16px;}
+
+/* Donut chart */
+.donut-wrap{display:flex;align-items:center;gap:24px;}
+.donut-svg{flex-shrink:0;}
+.donut-legend{display:flex;flex-direction:column;gap:10px;flex:1;}
+.dl-item{display:flex;align-items:center;gap:8px;font-size:12px;}
+.dl-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.dl-label{color:var(--mut);font-size:11px;flex:1;}
+.dl-val{font-family:var(--mono);font-size:12px;font-weight:700;}
+
+/* Bar charts */
+.bar-list{display:flex;flex-direction:column;gap:10px;}
+.bar-item{display:flex;flex-direction:column;gap:4px;}
+.bar-header{display:flex;justify-content:space-between;font-size:11px;}
+.bar-label{color:var(--mut);}
+.bar-val{font-family:var(--mono);font-size:11px;font-weight:700;}
+.bar-track{background:var(--surf2);border-radius:3px;height:6px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+
+/* Priority ring */
+.pri-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pri-tile{background:var(--surf2);border-radius:8px;padding:12px;text-align:center;}
+.pri-num{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1;}
+.pri-lbl{font-size:10px;color:var(--mut);margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+
+/* Overdue list */
+.over-list{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;}
+.over-item{background:var(--surf2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;border-left:3px solid var(--purple);}
+.over-item-title{font-size:12px;font-weight:500;}
+.over-item-meta{font-size:10px;color:var(--mut);font-family:var(--mono);margin-top:2px;}
+.over-days{font-family:var(--mono);font-size:11px;color:var(--purple);font-weight:700;white-space:nowrap;}
+.no-over{text-align:center;padding:30px;color:var(--acc2);font-family:var(--mono);font-size:11px;}
+
+/* Trend bars */
+.trend-wrap{display:flex;align-items:flex-end;gap:6px;height:80px;}
+.trend-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+.trend-bar{width:100%;border-radius:3px 3px 0 0;min-height:4px;transition:height .4s ease;}
+.trend-lbl{font-family:var(--mono);font-size:8px;color:var(--mut);}
+
+@media print{header,.toolbar,.search-row,.filters,.footer,.row-actions,.tabs{display:none!important;}body{background:#fff;color:#000;}th,td{color:#000!important;border-color:#ccc!important;font-size:10px!important;}.stats{display:none;}}
+
+
+/* ── LOGIN GATE ── */
+.login-gate{position:fixed;inset:0;background:#0a0c10;z-index:999;display:flex;align-items:center;justify-content:center;}
+.login-gate.hidden{display:none;}
+.login-box{background:var(--surf);border:1px solid var(--bdr);border-radius:16px;padding:40px 36px;width:380px;display:flex;flex-direction:column;align-items:center;}
+.login-title{font-size:16px;font-weight:600;color:var(--txt);margin-bottom:4px;text-align:center;}
+.login-sub{font-size:11px;color:var(--mut);font-family:var(--mono);letter-spacing:.5px;margin-bottom:24px;text-align:center;}
+.login-field{width:100%;display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.login-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:var(--mut);}
+.login-err{font-size:11px;color:var(--dng);min-height:18px;text-align:center;margin-bottom:4px;font-family:var(--mono);}
+.login-btn{width:100%;padding:12px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px;}
+.login-btn:hover{filter:brightness(1.1);}
+.login-hint{font-size:10px;color:var(--mut);font-family:var(--mono);text-align:center;}
+</style>
+</head>
+<body>
+<!-- LOGIN GATE -->
+<div class="login-gate" id="login-gate">
+  <div class="login-box">
+    <img src="data:image/jpeg;base64,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" alt="MOAR" style="height:52px;border-radius:8px;margin-bottom:18px;">
+    <div class="login-title">MOAR IT Issue Tracker</div>
+    <div class="login-sub">Sign in to continue</div>
+    <div class="login-field">
+      <label class="login-label">Email Address</label>
+      <input type="email" id="login-email" placeholder="you@moaradvisory.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label class="login-label">Password</label>
+      <input type="password" id="login-pwd" placeholder="Enter password" autocomplete="current-password">
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <button class="login-btn" onclick="submitLogin()">Sign In</button>
+    <div class="login-hint">Access restricted to MOAR team members</div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">
+    <img src="data:image/jpeg;base64,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" alt="MOAR" style="height:38px;border-radius:6px;">
+    <div>
+      <div class="logo-name">IT Issue Tracker</div>
+    </div>
+  </div>
+  <div class="live-pill"><span class="ldot"></span><span id="sync-label">Connecting...</span></div>
+</header>
+
+<!-- STATS BAR -->
+<div class="stats">
+  <div class="stat s-total"><div class="sv" id="s-total">-</div><div class="sl">Total</div></div>
+  <div class="stat s-open"><div class="sv" id="s-open">-</div><div class="sl">Open</div></div>
+  <div class="stat s-prog"><div class="sv" id="s-prog">-</div><div class="sl">In Progress</div></div>
+  <div class="stat s-res"><div class="sv" id="s-res">-</div><div class="sl">Resolved</div></div>
+  <div class="stat s-crit"><div class="sv" id="s-crit">-</div><div class="sl">Critical</div></div>
+  <div class="stat s-over"><div class="sv" id="s-over">-</div><div class="sl">Overdue</div></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('issues',this)">Issues</button>
+  <button class="tab" onclick="switchTab('dashboard',this)">Dashboard</button>
+</div>
+
+<!-- ISSUES TAB -->
+<div class="tab-panel active" id="tab-issues">
+  <div class="main">
+    <div class="overdue-banner" id="overdue-banner">⚠ <span id="overdue-banner-text"></span> — switch to Overdue filter or check Dashboard</div>
+    <div class="toolbar">
+      <button class="btn btn-primary btn-lg" onclick="openModal()">+ Log Issue</button>
+      <button class="btn btn-ghost" onclick="exportCSV()">Download CSV</button>
+      <button class="btn btn-ghost" id="btn-pdf" onclick="exportPDF()">⬇ Download PDF</button>
+      <button class="btn btn-ghost" onclick="loadIssues(true)">Refresh</button>
+      <button class="btn btn-ghost" onclick="clearAllIssues()" style="border-color:var(--dng);color:var(--dng);" title="Admin only">&#x1F5D1; Clear All Issues</button>
+      <div class="filters">
+        <span class="filter-label">Status</span>
+        <div class="filter-group">
+          <button class="fb active" onclick="setFilter('all',this)">All</button>
+          <button class="fb" onclick="setFilter('Open',this)">Open</button>
+          <button class="fb" onclick="setFilter('In Progress',this)">In Progress</button>
+          <button class="fb" onclick="setFilter('Resolved',this)">Resolved</button>
+          <button class="fb over-filter" onclick="setFilter('Overdue',this)">⚠ Overdue</button>
+        </div>
+        <div class="filter-sep"></div>
+        <span class="filter-label">Priority</span>
+        <div class="filter-group">
+          <button class="fb crit-filter" onclick="setFilter('Critical',this)">Critical</button>
+          <button class="fb high-filter" onclick="setFilter('High',this)">High</button>
+          <button class="fb" onclick="setFilter('Medium',this)">Medium</button>
+          <button class="fb" onclick="setFilter('Low',this)">Low</button>
+          <button class="fb" onclick="setFilter('Unset',this)">Unset</button>
+        </div>
+      </div>
+    </div>
+    <div class="search-row">
+      <span class="si">🔍</span>
+      <input type="text" id="search" placeholder="Search by title, category, reporter..." oninput="render()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Issue ID</th><th>Date</th><th>Category</th><th>Title</th>
+            <th>Priority</th><th>Status</th><th>Due Date</th>
+            <th>Troubleshooting Notes</th><th>Reported By</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="empty" style="display:none"><p>No issues found.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD TAB -->
+<div class="tab-panel" id="tab-dashboard">
+  <div class="dash">
+    <div class="dash-grid">
+
+      <!-- Status donut -->
+      <div class="dash-card">
+        <h3>Issues by Status</h3>
+        <div class="donut-wrap">
+          <svg class="donut-svg" width="110" height="110" viewBox="0 0 110 110" id="donut-svg">
+            <circle cx="55" cy="55" r="40" fill="none" stroke="var(--surf2)" stroke-width="18"/>
+            <circle id="donut-open" cx="55" cy="55" r="40" fill="none" stroke="var(--warn)" stroke-width="18" stroke-dasharray="0 251.3" stroke-linecap="butt" transform="rotate(-90 55 55)" style="transition:stroke-dasharray .6s ease"/>
+            <circle id="donut-prog" cx="55" cy="55" r="40" fill="none" stroke="var(--acc)" stroke-width="18" stroke-dasharray="0 251.3" stroke-linecap="butt" transform="rotate(-90 55 55)" style="transition:stroke-dasharray .6s ease"/>
+            <circle id="donut-res" cx="55" cy="55" r="40" fill="none" stroke="var(--acc2)" stroke-width="18" stroke-dasharray="0 251.3" stroke-linecap="butt" transform="rotate(-90 55 55)" style="transition:stroke-dasharray .6s ease"/>
+            <text x="55" y="52" text-anchor="middle" font-family="Space Mono,monospace" font-size="18" font-weight="700" fill="var(--txt)" id="donut-center-num">0</text>
+            <text x="55" y="64" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="8" fill="var(--mut)">TOTAL</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="dl-item"><div class="dl-dot" style="background:var(--warn)"></div><span class="dl-label">Open</span><span class="dl-val" id="dl-open" style="color:var(--warn)">0</span></div>
+            <div class="dl-item"><div class="dl-dot" style="background:var(--acc)"></div><span class="dl-label">In Progress</span><span class="dl-val" id="dl-prog" style="color:var(--acc)">0</span></div>
+            <div class="dl-item"><div class="dl-dot" style="background:var(--acc2)"></div><span class="dl-label">Resolved</span><span class="dl-val" id="dl-res" style="color:var(--acc2)">0</span></div>
+            <div class="dl-item"><div class="dl-dot" style="background:var(--purple)"></div><span class="dl-label">Overdue</span><span class="dl-val" id="dl-over" style="color:var(--purple)">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category bars -->
+      <div class="dash-card">
+        <h3>Issues by Category</h3>
+        <div class="bar-list" id="cat-bars"></div>
+      </div>
+
+      <!-- Priority tiles -->
+      <div class="dash-card">
+        <h3>By Priority</h3>
+        <div class="pri-grid">
+          <div class="pri-tile"><div class="pri-num" id="p-crit" style="color:var(--dng)">0</div><div class="pri-lbl">Critical</div></div>
+          <div class="pri-tile"><div class="pri-num" id="p-high" style="color:var(--warn)">0</div><div class="pri-lbl">High</div></div>
+          <div class="pri-tile"><div class="pri-num" id="p-med" style="color:#a0b8ff">0</div><div class="pri-lbl">Medium</div></div>
+          <div class="pri-tile"><div class="pri-num" id="p-low" style="color:var(--mut)">0</div><div class="pri-lbl">Low</div></div>
+        </div>
+      </div>
+
+      <!-- Overdue list -->
+      <div class="dash-card wide">
+        <h3>⚠ Overdue Issues</h3>
+        <div class="over-list" id="over-list"></div>
+      </div>
+
+      <!-- Trend (last 8 weeks) -->
+      <div class="dash-card">
+        <h3>Issues Logged — Last 8 Weeks</h3>
+        <div class="trend-wrap" id="trend-bars"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- LOG/EDIT MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modal-title">Log New Issue</h2>
+    <div class="fg">
+      <div class="fgi full"><label>Issue Title *</label><input id="f-title" type="text" placeholder="Brief description"></div>
+      <div class="fgi" style="display:none"><label>Date Reported</label><input id="f-date" type="date"></div>
+      <div class="fgi" id="due-field" style="display:none"><label>Due Date <span style="color:var(--acc);font-size:8px;">(Admin only)</span></label><input id="f-due" type="date"></div>
+      <div class="fgi"><label>Category *</label>
+        <select id="f-cat"><option value="">Select...</option><option>Hardware</option><option>Software</option><option>Network</option><option>Access / Permissions</option><option>Other</option></select>
+      </div>
+      <div class="fgi" id="pri-field" style="display:none"><label>Priority <span style="color:var(--acc);font-size:8px;">(Admin only)</span></label>
+        <select id="f-pri"><option value="">Select...</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
+      </div>
+      <div class="fgi" id="sta-field" style="display:none"><label>Status <span style="color:var(--acc);font-size:8px;">(Admin only)</span></label>
+        <select id="f-sta"><option>Open</option><option>In Progress</option><option>Resolved</option></select>
+      </div>
+      <div class="fgi"><label>Your Name *</label><input id="f-rep" type="text" placeholder="Full name"></div>
+      <div class="fgi"><label>Your Email *</label><input id="f-remail" type="email" placeholder="your@moaradvisory.com"></div>
+      <div class="fgi full"><label>Description</label><textarea id="f-desc" placeholder="Describe the issue in detail..."></textarea></div>
+      <div class="fgi full" id="notes-field" style="display:none"><label>Troubleshooting Notes <span style="color:var(--acc);font-size:8px;">(Admin only)</span></label><textarea id="f-notes" placeholder="Steps taken, findings, resolution..."></textarea></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="btn-save" onclick="saveIssue()">Save Issue</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASSWORD MODAL -->
+<div class="overlay" id="pwd-overlay" style="z-index:300;">
+  <div class="modal" style="width:360px;">
+    <h2>Admin access required</h2>
+    <div class="fgi">
+      <label>Password</label>
+      <input type="password" id="pwd-input" placeholder="Enter password...">
+    </div>
+    <div style="font-size:11px;color:var(--dng);margin-top:8px;display:none;" id="pwd-error">Incorrect password</div>
+    <div class="modal-btns" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="cancelPwd()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitPwd()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="footer">
+  <span id="last-sync">Not yet synced</span>
+  <span id="issue-count"></span>
+</div>
+
+<script>
+/* ── CONFIG ── */
+var JSONBIN_API_KEY     = "$2a$10$7QYlnXt4I15sKGC.DOL2QO2bL6DtpQg30.7mGvlx8RzbRVFGiBIbC";
+var JSONBIN_BIN_ID      = "69bd5f32aa77b81da901ce0e";
+var EMAILJS_PUBLIC_KEY  = "8OH8FJyt_z0ssNAVU";
+var EMAILJS_SERVICE_ID  = "service_39ugs0o";
+var EMAILJS_TEMPLATE_ID = "template_ssbfrbn";
+var EMAIL_JAGRUTH       = "jagruth.gowda@moaradvisory.com";
+var EMAIL_MOAR          = "harsha.nandakumar@moaradvisory.com, niveditha.harish@moaradvisory.com";
+var ADMIN_PASSWORD      = "ITMOAR2026";
+var BASE_URL = "https://api.jsonbin.io/v3/b/" + JSONBIN_BIN_ID;
+var jsonOK = JSONBIN_API_KEY !== "YOUR_JSONBIN_API_KEY";
+var emailOK = EMAILJS_PUBLIC_KEY !== "YOUR_EMAILJS_PUBLIC_KEY";
+if (emailOK) { emailjs.init({publicKey: EMAILJS_PUBLIC_KEY}); }
+
+/* ── STATE ── */
+var issues = [], editId = null, filter = "all", saving = false, authenticated = false, pendingAction = null;
+
+/* ── TABS ── */
+function switchTab(name, btn) {
+  document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});
+  document.querySelectorAll(".tab-panel").forEach(function(p){p.classList.remove("active");});
+  btn.classList.add("active");
+  document.getElementById("tab-" + name).classList.add("active");
+  if (name === "dashboard") renderDashboard();
+}
+
+/* ── OVERDUE HELPERS ── */
+function today() { return new Date().toISOString().split("T")[0]; }
+function isOverdue(issue) {
+  if (!issue.due || issue.sta === "Resolved") return false;
+  return issue.due < today();
+}
+function daysOverdue(due) {
+  var d = Math.floor((new Date(today()) - new Date(due)) / 86400000);
+  return d;
+}
+function dueSoonish(due) {
+  if (!due) return false;
+  var d = Math.floor((new Date(due) - new Date(today())) / 86400000);
+  return d >= 0 && d <= 2;
+}
+
+/* ── RENDER TABLE ── */
+function render() {
+  var q = (document.getElementById("search").value || "").toLowerCase();
+  var priFilters = ["Critical","High","Medium","Low","Unset"];
+  var list;
+  if (filter === "Overdue") {
+    list = issues.filter(function(i){ return isOverdue(i); });
+  } else if (filter === "all") {
+    list = issues.slice();
+  } else if (priFilters.indexOf(filter) >= 0) {
+    list = issues.filter(function(i){ return (i.pri||"Unset") === filter; });
+  } else {
+    list = issues.filter(function(i){ return i.sta === filter; });
+  }
+  if (q) list = list.filter(function(i){ return (i.title+i.cat+i.rep+i.notes+i.desc).toLowerCase().indexOf(q) >= 0; });
+  list.sort(function(a,b){ return b.ts - a.ts; });
+
+  document.getElementById("empty").style.display = list.length ? "none" : "block";
+  var html = "";
+  for (var k = 0; k < list.length; k++) {
+    var i = list[k];
+    var over = isOverdue(i);
+    var dueHtml = "-";
+    if (i.due) {
+      if (over) {
+        dueHtml = "<span class='due-over'>⚠ " + i.due + " (" + daysOverdue(i.due) + "d)</span>";
+      } else if (dueSoonish(i.due)) {
+        dueHtml = "<span class='due-soon'>⏰ " + i.due + "</span>";
+      } else {
+        dueHtml = "<span class='due-ok'>" + i.due + "</span>";
+      }
+    }
+    html += "<tr" + (over ? " class='overdue-row'" : "") + ">" +
+      "<td><span class='iid'>" + i.id + "</span>" + (over ? "<br><span class='badge b-over' style='margin-top:3px;'>OVERDUE</span>" : "") + "</td>" +
+      "<td><span class='ts'>" + i.date + "</span></td>" +
+      "<td><span class='cat'><span class='cdot " + catDot(i.cat) + "'></span>" + i.cat + "</span></td>" +
+      "<td><div class='ititle'>" + esc(i.title) + "</div>" + (i.desc ? "<div style='font-size:10px;color:var(--mut);margin-top:2px'>" + esc(i.desc).substring(0,55) + (i.desc.length > 55 ? "..." : "") + "</div>" : "") + "</td>" +
+      "<td>" + priBadge(i.pri) + "</td>" +
+      "<td>" + staBadge(i.sta) + "</td>" +
+      "<td>" + dueHtml + "</td>" +
+      "<td style='font-size:11px;color:var(--mut);max-width:180px;'>" + (esc(i.notes)||"-") + "</td>" +
+      "<td><span class='ts'>" + (esc(i.rep)||"-") + "</span></td>" +
+      "<td><div class='row-actions'>" +
+        "<button class='ib' onclick='editIssue(\"" + i.id + "\")'>✎</button>" +
+        "<button class='ib del' onclick='delIssue(\"" + i.id + "\")'>✕</button>" +
+      "</div></td></tr>";
+  }
+  document.getElementById("tbody").innerHTML = html;
+
+  /* stats */
+  var overCount = issues.filter(function(i){ return isOverdue(i); }).length;
+  document.getElementById("s-total").textContent = issues.length;
+  document.getElementById("s-open").textContent = issues.filter(function(i){ return i.sta==="Open"; }).length;
+  document.getElementById("s-prog").textContent = issues.filter(function(i){ return i.sta==="In Progress"; }).length;
+  document.getElementById("s-res").textContent = issues.filter(function(i){ return i.sta==="Resolved"; }).length;
+  document.getElementById("s-crit").textContent = issues.filter(function(i){ return i.pri==="Critical"; }).length;
+  document.getElementById("s-over").textContent = overCount;
+
+  /* overdue banner */
+  var banner = document.getElementById("overdue-banner");
+  if (overCount > 0 && filter !== "Overdue") {
+    document.getElementById("overdue-banner-text").textContent = overCount + " overdue issue" + (overCount>1?"s":"") + " need attention";
+    banner.classList.add("show");
+  } else { banner.classList.remove("show"); }
+}
+
+/* ── DASHBOARD ── */
+function renderDashboard() {
+  var total   = issues.length;
+  var nOpen   = issues.filter(function(i){ return i.sta==="Open"; }).length;
+  var nProg   = issues.filter(function(i){ return i.sta==="In Progress"; }).length;
+  var nRes    = issues.filter(function(i){ return i.sta==="Resolved"; }).length;
+  var nOver   = issues.filter(function(i){ return isOverdue(i); }).length;
+
+  /* donut */
+  var C = 251.3;
+  document.getElementById("donut-center-num").textContent = total;
+  document.getElementById("dl-open").textContent = nOpen;
+  document.getElementById("dl-prog").textContent = nProg;
+  document.getElementById("dl-res").textContent  = nRes;
+  document.getElementById("dl-over").textContent = nOver;
+  if (total > 0) {
+    var openArc = (nOpen/total)*C, progArc = (nProg/total)*C, resArc = (nRes/total)*C;
+    document.getElementById("donut-open").setAttribute("stroke-dasharray", openArc + " " + C);
+    document.getElementById("donut-prog").setAttribute("stroke-dasharray", progArc + " " + C);
+    document.getElementById("donut-prog").style.strokeDashoffset = -openArc;
+    document.getElementById("donut-res").setAttribute("stroke-dasharray", resArc + " " + C);
+    document.getElementById("donut-res").style.strokeDashoffset = -(openArc + progArc);
+  }
+
+  /* category bars */
+  var cats = ["Hardware","Software","Network","Access / Permissions","Other"];
+  var catColors = ["#f7a84f","#4f8ef7","#00e5b0","#c77dff","#6b7591"];
+  var catCounts = cats.map(function(c){ return issues.filter(function(i){ return i.cat===c; }).length; });
+  var maxCat = Math.max.apply(null, catCounts) || 1;
+  var catHtml = cats.map(function(c,idx){
+    var n = catCounts[idx], pct = Math.round((n/maxCat)*100);
+    return "<div class='bar-item'>" +
+      "<div class='bar-header'><span class='bar-label'>" + c + "</span><span class='bar-val'>" + n + "</span></div>" +
+      "<div class='bar-track'><div class='bar-fill' style='width:" + pct + "%;background:" + catColors[idx] + "'></div></div>" +
+    "</div>";
+  }).join("");
+  document.getElementById("cat-bars").innerHTML = catHtml;
+
+  /* priority tiles */
+  document.getElementById("p-crit").textContent = issues.filter(function(i){ return i.pri==="Critical"; }).length;
+  document.getElementById("p-high").textContent = issues.filter(function(i){ return i.pri==="High"; }).length;
+  document.getElementById("p-med").textContent  = issues.filter(function(i){ return i.pri==="Medium"; }).length;
+  document.getElementById("p-low").textContent  = issues.filter(function(i){ return i.pri==="Low"; }).length;
+
+  /* overdue list */
+  var overIssues = issues.filter(function(i){ return isOverdue(i); }).sort(function(a,b){ return a.due < b.due ? -1 : 1; });
+  var overHtml = "";
+  if (overIssues.length === 0) {
+    overHtml = "<div class='no-over'>✓ No overdue issues — great work!</div>";
+  } else {
+    overIssues.forEach(function(i){
+      overHtml += "<div class='over-item'><div><div class='over-item-title'>" + esc(i.title) + "</div><div class='over-item-meta'>" + i.id + " · " + i.cat + " · " + i.sta + "</div></div><div class='over-days'>" + daysOverdue(i.due) + "d overdue</div></div>";
+    });
+  }
+  document.getElementById("over-list").innerHTML = overHtml;
+
+  /* trend — last 8 weeks */
+  var weeks = [];
+  for (var w = 7; w >= 0; w--) {
+    var d = new Date(); d.setDate(d.getDate() - w*7);
+    var start = new Date(d); start.setDate(start.getDate() - 6);
+    var s = start.toISOString().split("T")[0];
+    var e = d.toISOString().split("T")[0];
+    var count = issues.filter(function(i){ return i.date >= s && i.date <= e; }).length;
+    var label = (d.getMonth()+1) + "/" + d.getDate();
+    weeks.push({label:label, count:count});
+  }
+  var maxW = Math.max.apply(null, weeks.map(function(w){return w.count;})) || 1;
+  var trendHtml = weeks.map(function(w){
+    var h = Math.max(4, Math.round((w.count/maxW)*70));
+    return "<div class='trend-col'>" +
+      "<div class='trend-bar' style='height:" + h + "px;background:var(--acc);opacity:" + (0.4 + 0.6*(w.count/maxW)) + "'></div>" +
+      "<div class='trend-lbl'>" + w.label + "</div>" +
+    "</div>";
+  }).join("");
+  document.getElementById("trend-bars").innerHTML = trendHtml;
+}
+
+/* ── BADGE HELPERS ── */
+function catDot(c) { return {"Hardware":"d-hw","Software":"d-sw","Network":"d-nw","Access / Permissions":"d-ac","Other":"d-ot"}[c]||"d-ot"; }
+function priBadge(p) { var m={"Critical":"b-crit","High":"b-high","Medium":"b-med","Low":"b-low"}; return "<span class='badge "+(m[p]||"b-low")+"'>"+(p||"-")+"</span>"; }
+function staBadge(s) { var m={"Open":"b-open","In Progress":"b-prog","Resolved":"b-res"}; return "<span class='badge "+(m[s]||"b-open")+"'>"+(s||"-")+"</span>"; }
+function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function gv(id) { var e=document.getElementById(id); return e?e.value:""; }
+function sv(id,v) { var e=document.getElementById(id); if(e) e.value=v; }
+function nextId() {
+  if (!issues.length) return "ISS-0001";
+  var max=0; for(var k=0;k<issues.length;k++){var n=parseInt(issues[k].id.replace("ISS-",""));if(!isNaN(n)&&n>max)max=n;}
+  var s=String(max+1); while(s.length<4) s="0"+s; return "ISS-"+s;
+}
+function updateFooter() {
+  var now=new Date(); var h=now.getHours(); var m=now.getMinutes();
+  document.getElementById("last-sync").innerHTML = "Last synced: <span>"+(h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+"</span>";
+  document.getElementById("issue-count").textContent = issues.length+" issue"+(issues.length!==1?"s":"");
+}
+function setFilter(f,btn) {
+  filter=f;
+  document.querySelectorAll(".fb").forEach(function(b){b.classList.remove("active");});
+  btn.classList.add("active"); render();
+}
+function toast(msg,warn) {
+  var t=document.getElementById("toast"); t.textContent=msg;
+  t.style.borderColor=warn?"var(--warn)":"var(--acc2)"; t.style.color=warn?"var(--warn)":"var(--acc2)";
+  t.classList.add("show"); setTimeout(function(){t.classList.remove("show");},3500);
+}
+
+/* ── MODAL ── */
+function openModal(id) {
+  editId=id||null;
+  document.getElementById("modal-title").textContent=editId?"Edit Issue":"Log New Issue";
+  var isAdmin=editId; // admin fields only shown in edit mode
+  document.getElementById("due-field").style.display=isAdmin?"flex":"none";
+  document.getElementById("pri-field").style.display=isAdmin?"flex":"none";
+  document.getElementById("sta-field").style.display=isAdmin?"flex":"none";
+  document.getElementById("notes-field").style.display=isAdmin?"block":"none";
+  if (editId) {
+    var i=null; for(var k=0;k<issues.length;k++){if(issues[k].id===editId){i=issues[k];break;}}
+    if(!i) return;
+    sv("f-title",i.title); sv("f-date",i.date); sv("f-due",i.due||""); sv("f-cat",i.cat); sv("f-pri",i.pri||"");
+    sv("f-sta",i.sta); sv("f-rep",i.rep||""); sv("f-remail",i.remail||""); sv("f-desc",i.desc||""); sv("f-notes",i.notes||"");
+  } else {
+    sv("f-title",""); sv("f-cat",""); sv("f-pri",""); sv("f-rep",""); sv("f-remail",""); sv("f-desc",""); sv("f-notes",""); sv("f-due","");
+    sv("f-date", today()); sv("f-sta","Open");
+  }
+  document.getElementById("overlay").classList.add("open");
+}
+function closeModal() { document.getElementById("overlay").classList.remove("open"); editId=null; }
+function saveIssue() {
+  var title=gv("f-title").trim(), date=gv("f-date"), cat=gv("f-cat"), pri=gv("f-pri");
+  var rep=gv("f-rep").trim(), remail=gv("f-remail").trim();
+  if (!title||!cat){toast("Fill all required fields",true);return;}
+  if (!rep){toast("Your name is required",true);return;}
+  if (!remail||remail.indexOf("@")<0){toast("A valid email is required",true);return;}
+  if (editId && !gv("f-pri")){toast("Please set a priority",true);return;}
+  if (saving) return;
+  saving=true;
+  var btn=document.getElementById("btn-save"); btn.disabled=true; btn.textContent="Saving...";
+  var newSta=gv("f-sta");
+  var newDue=gv("f-due");
+  var data={title:title,date:date,due:newDue,cat:cat,pri:pri,sta:newSta,rep:rep,remail:remail,desc:gv("f-desc").trim(),notes:gv("f-notes").trim(),ts:Date.now()};
+  var isNew=false,wasResolved=false,dueDateSet=false,savedId=editId;
+  if (editId) {
+    for(var k=0;k<issues.length;k++){
+      if(issues[k].id===editId){
+        if(issues[k].sta!=="Resolved"&&newSta==="Resolved") wasResolved=true;
+        if(!issues[k].due && newDue) dueDateSet=true;
+        else if(issues[k].due && newDue && issues[k].due !== newDue) dueDateSet=true;
+        issues[k]=Object.assign({},issues[k],data); break;
+      }
+    }
+  } else { if(!data.pri) data.pri="Unset"; data.sta="Open"; data.id=nextId(); issues.unshift(data); isNew=true; }
+  persist().then(function(){
+    render(); closeModal();
+    if(isNew&&emailOK){sendEmail("new",issues[0]);sendEmail("confirm",issues[0]);toast("Issue logged — email sent");}
+    else if(wasResolved&&emailOK){
+      for(var k=0;k<issues.length;k++){if(issues[k].id===savedId){sendEmail("resolved",issues[k]);break;}}
+      toast("Issue resolved — email sent");
+    } else if(dueDateSet&&emailOK){
+      for(var k=0;k<issues.length;k++){if(issues[k].id===savedId){sendEmail("due",issues[k]);break;}}
+      toast("Due date set — reporter notified");
+    } else { toast(editId?"Issue updated":"Issue saved"); }
+    saving=false; btn.disabled=false; btn.textContent="Save Issue";
+  });
+}
+
+/* ── EMAIL ── */
+function sendEmail(type,issue) {
+  if (!emailOK) return;
+  var dueLine = issue.due ? "\nDue Date: "+issue.due : "";
+  var reporterEmail = issue.remail || "";
+  // Team recipients — Jagruth + MOAR (Harsha + Niveditha).
+  // NOTE: If your EmailJS template still has Harsha/Niveditha hardcoded in CC,
+  // remove them from the template CC to avoid duplicate emails.
+  var toTeam = EMAIL_JAGRUTH + ", " + EMAIL_MOAR;
+
+  // 1. NEW ISSUE — notify team (Jagruth + Harsha + Niveditha) once
+  if (type==="new") {
+    var nsubj = "[MOAR IT] New Issue — "+issue.id+": "+issue.title;
+    var nbody = "New issue logged.\n\nID: "+issue.id+"\nTitle: "+issue.title+"\nCategory: "+issue.cat+"\nPriority: "+issue.pri+"\nReported By: "+(issue.rep||"-")+"\nReporter Email: "+(reporterEmail||"-")+"\nDate: "+issue.date+dueLine+"\n\nDescription: "+(issue.desc||"-");
+    emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,{to_email:toTeam,subject:nsubj,message:nbody}).catch(function(e){console.warn("New issue email failed",e);});
+    return;
+  }
+
+  // 2. CONFIRM — confirmation to reporter only (not Jagruth, they already got the team email)
+  if (type==="confirm") {
+    if (!reporterEmail) return;
+    var csubj = "[MOAR IT] We have received your issue — "+issue.id;
+    var cbody = "Hi "+(issue.rep||"there")+",\n\nThank you for logging your IT issue. We have received it and our IT support team will review it shortly.\n\nIssue ID: "+issue.id+"\nTitle: "+issue.title+"\nCategory: "+issue.cat+"\nDate Logged: "+issue.date+"\n\nYou will receive another email once a resolution date has been set, and again when it is resolved.\n\nIf this is urgent, please contact Jagruth directly.\n\n— MOAR IT Tracker";
+    emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,{to_email:reporterEmail,subject:csubj,message:cbody}).catch(function(e){console.warn("Confirm email failed",e);});
+    return;
+  }
+
+  // 3. DUE DATE SET — notify reporter only (Jagruth set it, they know already)
+  if (type==="due") {
+    if (!reporterEmail) return;
+    var subj = "[MOAR IT] Your issue "+issue.id+" will be resolved by "+issue.due;
+    var body = "Hi "+(issue.rep||"there")+",\n\nYour IT issue has been reviewed and a resolution date has been set.\n\nIssue ID: "+issue.id+"\nTitle: "+issue.title+"\nCategory: "+issue.cat+"\nPriority: "+issue.pri+"\nExpected Resolution: "+issue.due+"\n\nOur IT support team is working on it. You will receive another email once it is resolved.\n\nIf this is urgent, please contact Jagruth directly.\n\n— MOAR IT Tracker";
+    emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,{to_email:reporterEmail,subject:subj,message:body}).catch(function(e){console.warn("Due email failed",e);});
+    return;
+  }
+
+  // 4. RESOLVED — two separate emails: team once, reporter once (no overlap)
+  if (type==="resolved") {
+    // Email 1: team notification (Jagruth + Harsha + Niveditha)
+    var tsubj = "[MOAR IT] Resolved — "+issue.id+": "+issue.title;
+    var tbody = "Issue resolved.\n\nID: "+issue.id+"\nTitle: "+issue.title+"\nResolved on: "+today()+"\nNotes: "+(issue.notes||"-");
+    emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,{to_email:toTeam,subject:tsubj,message:tbody}).catch(function(e){console.warn("Resolved team email failed",e);});
+    // Email 2: reporter notification only
+    if (reporterEmail) {
+      var rsubj = "[MOAR IT] Your issue "+issue.id+" has been resolved";
+      var rbody = "Hi "+(issue.rep||"there")+",\n\nGreat news! Your IT issue has been resolved.\n\nIssue ID: "+issue.id+"\nTitle: "+issue.title+"\nResolved on: "+today()+"\n\nNotes from IT:\n"+(issue.notes||"No additional notes.")+"\n\nIf you continue to experience issues, please log a new request.\n\n— MOAR IT Tracker";
+      emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,{to_email:reporterEmail,subject:rsubj,message:rbody}).catch(function(e){console.warn("Resolved reporter email failed",e);});
+    }
+  }
+}
+
+/* ── AUTH ── */
+function checkAuth(action) {
+  if (authenticated){action();return;}
+  pendingAction=action; sv("pwd-input",""); document.getElementById("pwd-error").style.display="none";
+  document.getElementById("pwd-overlay").classList.add("open");
+  setTimeout(function(){document.getElementById("pwd-input").focus();},100);
+}
+function submitPwd() {
+  if (gv("pwd-input")===ADMIN_PASSWORD){
+    authenticated=true; document.getElementById("pwd-overlay").classList.remove("open");
+    if(pendingAction){pendingAction();pendingAction=null;}
+  } else { document.getElementById("pwd-error").style.display="block"; sv("pwd-input",""); }
+}
+function cancelPwd() { document.getElementById("pwd-overlay").classList.remove("open"); pendingAction=null; }
+document.getElementById("pwd-input").addEventListener("keydown",function(e){if(e.key==="Enter")submitPwd();});
+
+/* ── CRUD ── */
+function delIssue(id) {
+  checkAuth(function(){
+    if (!confirm("Delete this issue?")) return;
+    var newList=[]; for(var k=0;k<issues.length;k++){if(issues[k].id!==id)newList.push(issues[k]);}
+    issues=newList;
+    persist().then(function(){ render(); updateFooter(); toast("Issue deleted"); })
+      .catch(function(e){ toast("Delete failed: "+e.message, true); });
+  });
+}
+function clearAllIssues() {
+  checkAuth(function(){
+    if (!confirm("⚠ This will permanently delete ALL issues. Are you sure?")) return;
+    if (!confirm("Last warning — delete every single issue with no undo?")) return;
+    issues=[];
+    persist().then(function(){ render(); updateFooter(); toast("All issues cleared"); })
+      .catch(function(e){ toast("Clear failed: "+e.message, true); });
+  });
+}
+function editIssue(id){checkAuth(function(){openModal(id);});}
+
+/* ── CSV ── */
+function exportCSV() {
+  if (!issues.length){toast("No issues to export",true);return;}
+  var h=["ID","Date","Due Date","Category","Title","Priority","Status","Reporter","Description","Troubleshooting Notes"];
+  var rows=[h.join(",")];
+  for(var k=0;k<issues.length;k++){
+    var i=issues[k];
+    rows.push([i.id,i.date,i.due||"",i.cat,i.title,i.pri,i.sta,i.rep,i.desc,i.notes].map(function(v){return '"'+String(v||"").replace(/"/g,'""')+'"';}).join(","));
+  }
+  var a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([rows.join("\n")],{type:"text/csv"}));
+  a.download="MOAR_IT_"+today()+".csv"; a.click(); toast("CSV exported");
+}
+
+/* ── JSONBIN ── */
+function fetchIssues() {
+  return fetch(BASE_URL+"/latest",{headers:{"X-Master-Key":JSONBIN_API_KEY,"X-Access-Key":JSONBIN_API_KEY}})
+    .then(function(r){if(!r.ok)throw new Error("Status "+r.status);return r.json();})
+    .then(function(d){return Array.isArray(d.record)?d.record:[];});
+}
+function pushIssues() {
+  return fetch(BASE_URL,{method:"PUT",headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_API_KEY,"X-Access-Key":JSONBIN_API_KEY},body:JSON.stringify(issues)})
+    .then(function(r){if(!r.ok)throw new Error("Status "+r.status);});
+}
+function deleteFromDB(id) {
+  return Promise.resolve(); // JSONBin stores full array — delete handled via persist()
+}
+function loadIssues(showToast) {
+  if (!jsonOK){document.getElementById("sync-label").textContent="Setup needed";return;}
+  document.getElementById("sync-label").textContent="Syncing...";
+  fetchIssues().then(function(data){
+    issues=data; render(); updateFooter();
+    document.getElementById("sync-label").textContent="Live — shared";
+    checkAndNag(issues);
+    if(showToast) toast("Refreshed");
+  }).catch(function(e){
+    document.getElementById("sync-label").textContent="Error — "+e.message;
+    toast("Could not connect: "+e.message,true);
+  });
+}
+function persist() {
+  if (!jsonOK) return Promise.resolve();
+  return pushIssues().then(function(){updateFooter();}).catch(function(e){toast("Save failed: "+e.message,true);});
+}
+
+/* ── PDF EXPORT ── */
+async function exportPDF() {
+  var btn = document.getElementById("btn-pdf");
+  btn.disabled = true; btn.textContent = "Generating...";
+  try {
+    var { jsPDF } = window.jspdf;
+    var doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    var pageW = 297, pageH = 210, margin = 12;
+
+    // ── colours
+    var bg      = [13,15,20];
+    var surf    = [22,26,35];
+    var surf2   = [30,35,48];
+    var bdr     = [42,48,69];
+    var acc     = [79,142,247];
+    var acc2    = [0,229,176];
+    var warn    = [247,168,79];
+    var dng     = [247,89,89];
+    var purple  = [199,125,255];
+    var txt     = [232,236,244];
+    var mut     = [107,117,145];
+
+    function setFill(c){ doc.setFillColor(c[0],c[1],c[2]); }
+    function setTxt(c){ doc.setTextColor(c[0],c[1],c[2]); }
+    function setDraw(c){ doc.setDrawColor(c[0],c[1],c[2]); }
+
+    // ── background
+    setFill(bg); doc.rect(0,0,pageW,pageH,"F");
+
+    // ── header bar
+    setFill(surf); doc.rect(0,0,pageW,18,"F");
+    setDraw(bdr); doc.setLineWidth(0.3); doc.line(0,18,pageW,18);
+
+    // logo badge
+    setFill(acc); doc.roundedRect(margin,4,18,10,2,2,"F");
+    setTxt([255,255,255]); doc.setFont("helvetica","bold"); doc.setFontSize(8);
+    doc.text("MOAR",margin+9,10.5,{align:"center"});
+
+    // title
+    setTxt(txt); doc.setFontSize(11); doc.setFont("helvetica","bold");
+    doc.text("IT Issue Tracker — Weekly Report",margin+22,10);
+    setTxt(mut); doc.setFontSize(7); doc.setFont("helvetica","normal");
+
+    // date right
+    var now = new Date();
+    var dateStr = now.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+    setTxt(mut); doc.setFontSize(7);
+    doc.text("Generated: "+dateStr, pageW-margin, 10, {align:"right"});
+
+    // ── STAT TILES row
+    var nTotal = issues.length;
+    var nOpen  = issues.filter(function(i){return i.sta==="Open";}).length;
+    var nProg  = issues.filter(function(i){return i.sta==="In Progress";}).length;
+    var nRes   = issues.filter(function(i){return i.sta==="Resolved";}).length;
+    var nCrit  = issues.filter(function(i){return i.pri==="Critical";}).length;
+    var nOver  = issues.filter(function(i){return isOverdue(i);}).length;
+
+    var tiles = [
+      {label:"TOTAL",    val:nTotal, col:txt},
+      {label:"OPEN",     val:nOpen,  col:warn},
+      {label:"IN PROGRESS",val:nProg,col:acc},
+      {label:"RESOLVED", val:nRes,   col:acc2},
+      {label:"CRITICAL", val:nCrit,  col:dng},
+      {label:"OVERDUE",  val:nOver,  col:purple}
+    ];
+    var tileW = (pageW - margin*2 - 10) / 6;
+    var ty = 22;
+    tiles.forEach(function(t,idx){
+      var tx = margin + idx*(tileW+2);
+      setFill(surf); doc.roundedRect(tx,ty,tileW,18,2,2,"F");
+      setDraw(bdr); doc.setLineWidth(0.2); doc.roundedRect(tx,ty,tileW,18,2,2,"S");
+      setTxt(t.col); doc.setFont("courier","bold"); doc.setFontSize(16);
+      doc.text(String(t.val), tx+tileW/2, ty+10.5, {align:"center"});
+      setTxt(mut); doc.setFont("helvetica","normal"); doc.setFontSize(6);
+      doc.text(t.label, tx+tileW/2, ty+15.5, {align:"center"});
+    });
+
+    // ── DASHBOARD row: donut-like bars + category breakdown
+    var dashY = ty+22;
+    var colW  = (pageW - margin*2 - 8) / 3;
+
+    // Card helper
+    function card(x,y,w,h){
+      setFill(surf); doc.roundedRect(x,y,w,h,2,2,"F");
+      setDraw(bdr); doc.setLineWidth(0.2); doc.roundedRect(x,y,w,h,2,2,"S");
+    }
+
+    // ── Card 1: Status breakdown
+    var c1x = margin, c1y = dashY, c1w = colW, c1h = 52;
+    card(c1x,c1y,c1w,c1h);
+    setTxt(mut); doc.setFont("helvetica","normal"); doc.setFontSize(6.5);
+    doc.text("ISSUES BY STATUS",c1x+4,c1y+6);
+    var statBars = [
+      {label:"Open",       val:nOpen, col:warn},
+      {label:"In Progress",val:nProg, col:acc},
+      {label:"Resolved",   val:nRes,  col:acc2},
+      {label:"Overdue",    val:nOver, col:purple}
+    ];
+    var maxS = Math.max(nOpen,nProg,nRes,nOver,1);
+    statBars.forEach(function(b,i){
+      var by = c1y+10+i*10;
+      setTxt(mut); doc.setFontSize(6); doc.setFont("helvetica","normal");
+      doc.text(b.label, c1x+4, by+4);
+      var barMaxW = c1w-40; var barW = Math.max(2,(b.val/maxS)*barMaxW);
+      setFill(surf2); doc.roundedRect(c1x+28,by,barMaxW,4,1,1,"F");
+      setFill(b.col); doc.roundedRect(c1x+28,by,barW,4,1,1,"F");
+      setTxt(b.col); doc.setFont("courier","bold"); doc.setFontSize(6.5);
+      doc.text(String(b.val), c1x+28+barMaxW+3, by+4);
+    });
+
+    // ── Card 2: Category breakdown
+    var c2x = margin+colW+4, c2y = dashY, c2w = colW, c2h = 52;
+    card(c2x,c2y,c2w,c2h);
+    setTxt(mut); doc.setFontSize(6.5); doc.setFont("helvetica","normal");
+    doc.text("ISSUES BY CATEGORY",c2x+4,c2y+6);
+    var cats=[
+      {n:"Hardware",      col:warn},
+      {n:"Software",      col:acc},
+      {n:"Network",       col:acc2},
+      {n:"Access / Permissions",col:purple},
+      {n:"Other",         col:mut}
+    ];
+    var maxC = Math.max.apply(null,cats.map(function(c){return issues.filter(function(i){return i.cat===c.n;}).length;}))||1;
+    cats.forEach(function(c,i){
+      var cnt = issues.filter(function(x){return x.cat===c.n;}).length;
+      var by  = c2y+10+i*8.5;
+      setTxt(mut); doc.setFontSize(6); doc.setFont("helvetica","normal");
+      var shortN = c.n.length>18?c.n.substring(0,16)+"..":c.n;
+      doc.text(shortN, c2x+4, by+4);
+      var barMaxW = c2w-42; var barW = Math.max(2,(cnt/maxC)*barMaxW);
+      setFill(surf2); doc.roundedRect(c2x+30,by,barMaxW,4,1,1,"F");
+      setFill(c.col); doc.roundedRect(c2x+30,by,barW,4,1,1,"F");
+      setTxt(c.col); doc.setFont("courier","bold"); doc.setFontSize(6.5);
+      doc.text(String(cnt), c2x+30+barMaxW+3, by+4);
+    });
+
+    // ── Card 3: Priority + overdue summary
+    var c3x = margin+colW*2+8, c3y = dashY, c3w = colW, c3h = 52;
+    card(c3x,c3y,c3w,c3h);
+    setTxt(mut); doc.setFontSize(6.5); doc.setFont("helvetica","normal");
+    doc.text("BY PRIORITY",c3x+4,c3y+6);
+    var pris=[
+      {n:"Critical",col:dng},
+      {n:"High",    col:warn},
+      {n:"Medium",  col:acc},
+      {n:"Low",     col:mut},
+      {n:"Unset",   col:bdr}
+    ];
+    var priTileW=(c3w-12)/2, priTileH=16;
+    pris.forEach(function(p,i){
+      var cnt=issues.filter(function(x){return (x.pri||"Unset")===p.n;}).length;
+      var px=c3x+4+(i%2)*(priTileW+4);
+      var py=c3y+9+Math.floor(i/2)*18;
+      setFill(surf2); doc.roundedRect(px,py,priTileW,priTileH,2,2,"F");
+      setTxt(p.col); doc.setFont("courier","bold"); doc.setFontSize(12);
+      doc.text(String(cnt),px+priTileW/2,py+9,{align:"center"});
+      setTxt(mut); doc.setFont("helvetica","normal"); doc.setFontSize(5.5);
+      doc.text(p.n.toUpperCase(),px+priTileW/2,py+13.5,{align:"center"});
+    });
+
+    // ── ISSUES TABLE
+    var tableY = dashY + c1h + 6;
+    var tableH = pageH - tableY - 8;
+    card(margin, tableY, pageW-margin*2, tableH);
+
+    // table header
+    setFill(surf2);
+    doc.roundedRect(margin,tableY,pageW-margin*2,7,2,2,"F");
+    doc.rect(margin,tableY+4,pageW-margin*2,3,"F");
+
+    var cols = [
+      {h:"ISSUE ID", w:22},
+      {h:"DATE",     w:20},
+      {h:"CATEGORY", w:32},
+      {h:"TITLE",    w:60},
+      {h:"PRIORITY", w:22},
+      {h:"STATUS",   w:24},
+      {h:"DUE DATE", w:22},
+      {h:"REPORTER", w:30},
+    ];
+    var totalW = cols.reduce(function(a,c){return a+c.w;},0);
+    var scaleX = (pageW-margin*2-6)/totalW;
+    var cx = margin+3;
+    setTxt(mut); doc.setFont("helvetica","normal"); doc.setFontSize(5.5);
+    cols.forEach(function(col){
+      doc.text(col.h, cx+1, tableY+5);
+      cx += col.w*scaleX;
+    });
+
+    // table rows
+    var rowH = 6.5;
+    var maxRows = Math.floor((tableH-10)/rowH);
+    var rowIssues = issues.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,maxRows);
+    rowIssues.forEach(function(iss,ridx){
+      var ry = tableY+9+ridx*rowH;
+      if(ridx%2===1){setFill(surf2);doc.rect(margin,ry-1,pageW-margin*2,rowH,"F");}
+      var over = isOverdue(iss);
+      if(over){setFill([40,20,50]);doc.rect(margin,ry-1,pageW-margin*2,rowH,"F");
+               setFill(purple);doc.rect(margin,ry-1,2,rowH,"F");}
+      var rcx = margin+3;
+      var priColors={"Critical":dng,"High":warn,"Medium":acc,"Low":mut,"Unset":bdr};
+      var staColors={"Open":warn,"In Progress":acc,"Resolved":acc2};
+      var vals=[
+        {v:iss.id||"",         col:acc},
+        {v:iss.date||"",       col:mut},
+        {v:(iss.cat||"").substring(0,14), col:mut},
+        {v:(iss.title||"").substring(0,28)+(iss.title&&iss.title.length>28?"..":""), col:txt},
+        {v:iss.pri||"Unset",   col:priColors[iss.pri||"Unset"]||mut},
+        {v:iss.sta||"Open",    col:staColors[iss.sta]||warn},
+        {v:iss.due||(over?"OVERDUE":"-"), col:over?purple:mut},
+        {v:(iss.rep||"-").substring(0,14), col:mut},
+      ];
+      doc.setFont("helvetica","normal"); doc.setFontSize(5.5);
+      vals.forEach(function(v,ci){
+        setTxt(v.col);
+        doc.text(v.v, rcx+1, ry+3.5);
+        rcx += cols[ci].w*scaleX;
+      });
+    });
+
+    // row count note
+    if(issues.length>maxRows){
+      setTxt(mut); doc.setFontSize(5.5);
+      doc.text("Showing "+maxRows+" of "+issues.length+" issues — download CSV for full list",
+        margin+3, tableY+tableH-2);
+    }
+
+    // ── footer
+    setTxt(mut); doc.setFontSize(6); doc.setFont("helvetica","normal");
+    doc.text("MOAR IT Issue Tracker — Confidential", margin, pageH-3);
+    doc.text("moarharsha.github.io/IT-Tracker", pageW-margin, pageH-3, {align:"right"});
+
+    // ── save
+    var fname = "MOAR_IT_Report_"+today()+".pdf";
+    doc.save(fname);
+    toast("PDF downloaded — "+fname);
+  } catch(e) {
+    console.error(e);
+    toast("PDF generation failed: "+e.message, true);
+  }
+  btn.disabled=false; btn.textContent="⬇ Download PDF";
+}
+
+/* ── NAG EMAIL ── fires once per day if any issue is 3+ days overdue */
+function checkAndNag(issueList) {
+  if (!emailOK) return;
+  var NAG_KEY = "moar_nag_" + today();
+  if (localStorage.getItem(NAG_KEY)) return; // already nagged today from this browser
+  var stale = issueList.filter(function(i){ return isOverdue(i) && daysOverdue(i.due) >= 3; });
+  if (!stale.length) return;
+  localStorage.setItem(NAG_KEY, "1");
+  var lines = stale.sort(function(a,b){ return daysOverdue(b.due)-daysOverdue(a.due); })
+    .map(function(i){ return i.id+" — "+i.title+" ("+daysOverdue(i.due)+"d overdue, due "+i.due+")"; }).join("\n");
+  var subject = "[MOAR IT] ⚠ "+stale.length+" issue"+(stale.length>1?"s":"")+" overdue 3+ days — action needed";
+  var message = "Hi Jagruth,\n\nThe following issue"+(stale.length>1?"s have":"has")+" been overdue for 3 or more days and still need"+(stale.length===1?"s":"")+" attention:\n\n"+lines+"\n\nPlease update or resolve these at your earliest:\nhttps://moarharsha.github.io/IT-Tracker/\n\n— MOAR IT Tracker";
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    to_email: EMAIL_JAGRUTH,
+    subject: subject,
+    message: message
+  }).catch(function(e){ console.warn("Nag email failed", e); });
+}
+
+/* ── LOGIN GATE ── */
+var APP_PASSWORD  = "MoarIT@2026#";
+var LOGIN_KEY     = "moar_it_session";
+var ALLOWED_DOMAINS = ["moaradvisory", "yitro"];
+
+function submitLogin() {
+  var email = (document.getElementById("login-email").value || "").trim().toLowerCase();
+  var pwd   = document.getElementById("login-pwd").value;
+  var errEl = document.getElementById("login-err");
+
+  // Email domain check
+  var domainOK = ALLOWED_DOMAINS.some(function(d){ return email.indexOf("@"+d) >= 0 || email.indexOf(d+".") >= 0; });
+  if (!email || email.indexOf("@") < 0) { errEl.textContent = "Please enter a valid email address"; return; }
+  if (!domainOK) { errEl.textContent = "Access restricted to @moaradvisory and @yitro email addresses"; return; }
+
+  // Password check
+  if (pwd !== APP_PASSWORD) { errEl.textContent = "Incorrect password — please try again"; document.getElementById("login-pwd").value = ""; return; }
+
+  // Success
+  localStorage.setItem(LOGIN_KEY, "1");
+  localStorage.setItem(LOGIN_KEY + "_email", email);
+  document.getElementById("login-gate").classList.add("hidden");
+  loadIssues(false);
+}
+
+document.getElementById("login-email").addEventListener("keydown", function(e){ if(e.key==="Enter") document.getElementById("login-pwd").focus(); });
+document.getElementById("login-pwd").addEventListener("keydown",  function(e){ if(e.key==="Enter") submitLogin(); });
+
+function initApp() {
+  if (localStorage.getItem(LOGIN_KEY) === "1") {
+    document.getElementById("login-gate").classList.add("hidden");
+    loadIssues(false);
+  }
+}
+
+/* ── EVENTS ── */
+document.getElementById("overlay").addEventListener("click",function(e){if(e.target===e.currentTarget)closeModal();});
+document.getElementById("pwd-overlay").addEventListener("click",function(e){if(e.target===e.currentTarget)cancelPwd();});
+setInterval(function(){ if(localStorage.getItem(LOGIN_KEY)==="1") loadIssues(false); },30000);
+initApp();
+</script>
+</body>
+</html>
